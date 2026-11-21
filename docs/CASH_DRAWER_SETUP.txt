@@ -1,0 +1,73 @@
+39ERS POS — CASH DRAWER ADD-ON
+================================
+
+WHAT WAS ADDED
+- Manager's Tab now includes Cash Drawer Settings.
+- "Auto-Open Cash Drawer on Sale" is saved in this browser's localStorage.
+- A completed CASH sale sends the ESC/POS drawer pulse:
+  1B 70 00 19 FA
+- The pulse is sent after the sale is recorded and before receipt printing.
+  Therefore, a receipt printer paper/printing failure does not prevent the drawer
+  command from being attempted.
+- Manual "Open Drawer (Test)" button.
+- WebUSB, Web Serial, and limited Web Bluetooth BLE UART connection options.
+- Connection/send errors are displayed and written to the existing Audit Trail.
+- A pending drawer-close state is saved locally. Before the next sale, the
+  cashier must confirm that the drawer is physically closed and locked. The
+  confirmation is written to the Audit Trail.
+
+HOW TO USE
+1. Deploy this updated ZIP to the same Netlify site using your usual process.
+2. Open the POS on the computer connected to the receipt printer.
+3. Open Manager's Tab - Menu & System Settings.
+4. Find Cash Drawer Settings.
+5. Tick "Auto-Open Cash Drawer on Sale".
+6. Connect using the method supported by your printer:
+   - WebUSB: supported Chromium browser, HTTPS, compatible USB printer endpoint.
+   - Web Serial: supported Chromium browser, HTTPS, compatible serial/USB-serial
+     printer; the add-on opens the selected port at 9600 baud.
+   - Web Bluetooth: BLE printers exposing Nordic UART (NUS) or HM-10 style
+     writable characteristics only.
+7. Click "Open Drawer (Test)" and verify that the drawer physically opens.
+8. Complete a CASH sale. The drawer pulse is attempted immediately after the
+   sale is saved, independently of receipt printing.
+9. Close and lock the drawer. Confirm the browser prompt before the next sale.
+
+IMPORTANT COMPATIBILITY / PHYSICAL LIMITATIONS
+- No browser API can support every printer model or every possible connection.
+  WebUSB, Web Serial, and Web Bluetooth are not interchangeable.
+- Many Bluetooth receipt printers use Bluetooth Classic / SPP. Web Bluetooth
+  does not support generic Bluetooth Classic SPP, so those printers will not
+  connect through this option. Use a supported USB/serial connection or the
+  printer manufacturer's supported bridge/app.
+- On Windows, a USB printer may be claimed by its installed printer driver.
+  WebUSB may then be unable to claim the interface; Web Serial or a supported
+  manufacturer connection method may be needed.
+- Browser APIs generally require a secure context (HTTPS or localhost) and a
+  cashier click to grant the device permission. Device permissions may need to
+  be granted again on another computer/browser/profile.
+- The printer must be connected to the cash drawer's kick port using the correct
+  drawer cable. The pulse is a standard ESC/POS kick command, but drawer pin,
+  pulse timing, and printer compatibility vary by hardware.
+- A successful USB/serial/BLE write only means the command was sent; it does
+  NOT prove that the drawer physically opened.
+- A normal cash drawer has no electronic closed-position feedback. This add-on
+  cannot reliably detect a drawer left ajar or not fully locked unless a
+  compatible physical drawer sensor is installed and separately integrated.
+  For now, the cashier's physical confirmation is recorded in the Audit Trail.
+- If the printer is disconnected or the send fails, the sale remains completed;
+  an error is shown and an audit event is recorded. The system does not silently
+  reverse or duplicate a completed sale.
+
+FILES CHANGED
+- public/index.html: additive settings UI, connection helpers, cash-sale trigger,
+  close-confirmation guard, and audit events.
+- docs/CASH_DRAWER_SETUP.txt: this setup and compatibility guide.
+
+No existing files were removed. No existing POS tabs, sale calculations,
+receipt template, Google Sheets sync, inventory, QR ordering, or security
+workflows were intentionally changed.
+
+
+AUDIT TRAIL — EVERY SUCCESSFULLY SENT DRAWER SIGNAL
+Whenever the POS successfully hands the ESC/POS drawer pulse (1B 70 00 19 FA) to the connected printer transport, it now adds a dedicated CASH DRAWER SIGNAL SENT entry. The entry records date/time (from the Audit Trail), a unique signal ID, trigger (automatic sale or manual test), transaction ID when available, connection type, command name, and exact bytes. The existing CASH DRAWER OPEN COMMAND SENT entry is retained for compatibility. Failed transmissions continue to create CASH DRAWER OPEN ERROR entries; a failed attempt is not described as a successfully sent signal. The log uses the existing POS audit storage and Google Sheets sync pathway. A sent signal confirms transmission to the printer interface, not physical drawer movement or closure.
